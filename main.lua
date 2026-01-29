@@ -54,7 +54,21 @@ end
 
 local REPO_PREFIX = "@repo/"
 
+local function resolve_env_vars(path)
+  -- Replace $VAR_NAME or ${VAR_NAME} with the environment variable value
+  local resolved = path:gsub("%$(%w+)", function(var)
+    return os.getenv(var) or ("$" .. var)
+  end)
+  resolved = resolved:gsub("%${(%w+)}", function(var)
+    return os.getenv(var) or ("${" .. var .. "}")
+  end)
+  return resolved
+end
+
 local function resolve_path(path)
+  -- First resolve any environment variables in the path
+  path = resolve_env_vars(path)
+
   if string.sub(path, 1, #REPO_PREFIX) == REPO_PREFIX then
     local repo_root = get_repo_root()
     if not repo_root then
@@ -394,8 +408,9 @@ local function init()
   local hops = {}
   for _, hop in pairs(options.hops) do
     hop.desc = hop.desc or path_to_desc(hop.path, desc_strategy)
-    -- Manually replace ~ from users so we can make a valid Url later to check if dir exists
+    -- Resolve environment variables and ~ at init time
     -- Skip @repo/ paths as they are resolved at hop time
+    hop.path = resolve_env_vars(hop.path)
     if string.sub(hop.path, 1, 1) == '~' then
       hop.path = os.getenv('HOME') .. hop.path:sub(2)
     end
