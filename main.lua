@@ -56,10 +56,11 @@ local REPO_PREFIX = "@repo/"
 
 local function resolve_env_vars(path)
   -- Replace $VAR_NAME or ${VAR_NAME} with the environment variable value
-  local resolved = path:gsub("%$(%w+)", function(var)
+  -- Use [%w_]+ to match word characters AND underscores (e.g., $HARGOW_ROOT)
+  local resolved = path:gsub("%$([%w_]+)", function(var)
     return os.getenv(var) or ("$" .. var)
   end)
-  resolved = resolved:gsub("%${(%w+)}", function(var)
+  resolved = resolved:gsub("%${([%w_]+)}", function(var)
     return os.getenv(var) or ("${" .. var .. "}")
   end)
   return resolved
