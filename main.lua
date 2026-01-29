@@ -28,27 +28,33 @@ end
 local function fail(s, ...) ya.notify { title = 'bunny.yazi', content = string.format(s, ...), timeout = 4, level = 'error' } end
 local function info(s, ...) ya.notify { title = 'bunny.yazi', content = string.format(s, ...), timeout = 2, level = 'info' } end
 
-local function run_command(command)
-  local handle = io.popen(command)
-  local result = handle:read("*a")
-  local status_table = { handle:close() }
-  local status_code = status_table[3]
-  if status_code == 0 then
-    return result:gsub("[\n\r]", "")
-  else
-    return nil
+local get_cwd_str = ya.sync(function()
+  return tostring(cx.active.current.cwd)
+end)
+
+local function dir_exists(path)
+  local f = io.open(path .. "/.", "r")
+  if f then
+    f:close()
+    return true
   end
+  return false
 end
 
 local function get_repo_root()
-  local root = run_command("sl root 2>/dev/null")
-  if root then
-    return root
+  local path = get_cwd_str()
+
+  while path and path ~= "" do
+    if dir_exists(path .. "/.hg") or dir_exists(path .. "/.git") then
+      return path
+    end
+    local parent = path:match("(.+)/[^/]+$")
+    if not parent then
+      break
+    end
+    path = parent
   end
-  root = run_command("git rev-parse --show-toplevel 2>/dev/null")
-  if root then
-    return root
-  end
+
   return nil
 end
 
