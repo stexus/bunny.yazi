@@ -28,6 +28,47 @@ end
 local function fail(s, ...) ya.notify { title = 'bunny.yazi', content = string.format(s, ...), timeout = 4, level = 'error' } end
 local function info(s, ...) ya.notify { title = 'bunny.yazi', content = string.format(s, ...), timeout = 2, level = 'info' } end
 
+local function run_command(command)
+  local handle = io.popen(command)
+  local result = handle:read("*a")
+  local status_table = { handle:close() }
+  local status_code = status_table[3]
+  if status_code == 0 then
+    return result:gsub("[\n\r]", "")
+  else
+    return nil
+  end
+end
+
+local function get_repo_root()
+  local root = run_command("sl root 2>/dev/null")
+  if root then
+    return root
+  end
+  root = run_command("git rev-parse --show-toplevel 2>/dev/null")
+  if root then
+    return root
+  end
+  return nil
+end
+
+local REPO_PREFIX = "@repo/"
+
+local function resolve_path(path)
+  if string.sub(path, 1, #REPO_PREFIX) == REPO_PREFIX then
+    local repo_root = get_repo_root()
+    if not repo_root then
+      return nil, "Not in a git or sapling repository"
+    end
+    local relative_path = string.sub(path, #REPO_PREFIX + 1)
+    if relative_path == "" then
+      return repo_root
+    end
+    return repo_root .. "/" .. relative_path
+  end
+  return path
+end
+
 local get_state = ya.sync(function(state, attr)
   return state[attr]
 end)
@@ -271,13 +312,18 @@ local select_fuzzy = function(hops, config)
 end
 
 local cd = function(selected_hop, config)
-  local _, dir_list_err = fs.read_dir(Url(selected_hop.path), { limit = 1, resolve = true })
+  local resolved_path, resolve_err = resolve_path(selected_hop.path)
+  if not resolved_path then
+    fail(resolve_err)
+    return
+  end
+  local _, dir_list_err = fs.read_dir(Url(resolved_path), { limit = 1, resolve = true })
   if dir_list_err then
-    fail('Invalid directory ' .. path_to_desc(selected_hop.path))
+    fail('Invalid directory ' .. path_to_desc(resolved_path, config.desc_strategy))
     return
   end
   -- Assuming that if I can fs.read_dir, then this will also succeed
-  ya.emit('cd', { selected_hop.path })
+  ya.emit('cd', { resolved_path })
   if config.notify then
     info('Hopped to ' .. selected_hop.desc)
   end
@@ -349,6 +395,7 @@ local function init()
   for _, hop in pairs(options.hops) do
     hop.desc = hop.desc or path_to_desc(hop.path, desc_strategy)
     -- Manually replace ~ from users so we can make a valid Url later to check if dir exists
+    -- Skip @repo/ paths as they are resolved at hop time
     if string.sub(hop.path, 1, 1) == '~' then
       hop.path = os.getenv('HOME') .. hop.path:sub(2)
     end
