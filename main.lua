@@ -32,27 +32,17 @@ local get_cwd_str = ya.sync(function()
   return tostring(cx.active.current.cwd)
 end)
 
-local function dir_exists(path)
-  local f = io.open(path .. "/.", "r")
-  if f then
-    f:close()
-    return true
-  end
-  return false
-end
-
 local function get_repo_root()
-  local path = get_cwd_str()
+  local path = Url(get_cwd_str())
 
-  while path and path ~= "" do
-    if dir_exists(path .. "/.hg") or dir_exists(path .. "/.git") then
-      return path
+  while path do
+    -- Git worktrees and submodules use a .git file instead of a directory.
+    local git = fs.cha(path:join('.git'), true)
+    local hg = fs.cha(path:join('.hg'), true)
+    if (git and (git.is_dir or git.is_file)) or (hg and hg.is_dir) then
+      return tostring(path)
     end
-    local parent = path:match("(.+)/[^/]+$")
-    if not parent then
-      break
-    end
-    path = parent
+    path = path.parent
   end
 
   return nil
@@ -85,7 +75,7 @@ local function resolve_path(path)
     if relative_path == "" then
       return repo_root
     end
-    return repo_root .. "/" .. relative_path
+    return tostring(Url(repo_root):join(relative_path))
   end
   return path
 end
@@ -102,8 +92,12 @@ local get_cwd = ya.sync(function(_state)
   return tostring(cx.active.current.cwd) -- Url objects are evil >.<"
 end)
 
-local get_current_tab_idx = ya.sync(function(_state)
-  return cx.tabs.idx
+local function tab_id(id)
+  return type(id) == 'number' and id or id.value
+end
+
+local get_current_tab_id = ya.sync(function(_state)
+  return tab_id(cx.active.id)
 end)
 
 local get_tabs_as_paths = ya.sync(function(_state)
@@ -128,7 +122,7 @@ end
 
 local function filename(pathstr)
   if pathstr == '/' then return pathstr end
-  local url_name = Url(pathstr):name()
+  local url_name = Url(pathstr).name
   if url_name then
     return tostring(url_name)
   else
@@ -177,8 +171,8 @@ local create_special_hops = function(config)
     table.insert(hops, { key = '<Enter>', desc = 'Create hop', path = '__MARK__' })
   end
   table.insert(hops, { key = '<Space>', desc = 'Fuzzy search', path = '__FUZZY__' })
-  local tabhist = get_state('tabhist')
-  local tab = get_current_tab_idx()
+  local tabhist = get_state('tabhist') or {}
+  local tab = get_current_tab_id()
   if tabhist[tab] and tabhist[tab][2] then
     local previous_dir = tabhist[tab][2]
     table.insert(hops, {
@@ -257,9 +251,9 @@ local function validate_options(options)
   -- Validate other options
   if desc_strategy ~= nil and desc_strategy ~= 'path' and desc_strategy ~= 'filename' then
     return 'Invalid "desc_strategy" config value'
-  elseif tabs ~= nil and type(notify) ~= 'boolean' then
+  elseif tabs ~= nil and type(tabs) ~= 'boolean' then
     return 'Invalid "tabs" config value'
-  elseif ephemeral ~= nil and type(notify) ~= 'boolean' then
+  elseif ephemeral ~= nil and type(ephemeral) ~= 'boolean' then
     return 'Invalid "ephemeral" config value'
   elseif fuzzy_cmd ~= nil and type(fuzzy_cmd) ~= 'string' then
     return 'Invalid "fuzzy_cmd" config value'
@@ -433,19 +427,30 @@ return {
     ps.sub('cd', function(body)
       if not body then return end
       -- Note: This callback is sync and triggered at startup!
-      local tab = body.tab -- type number
-      if not tab then return end
+      if not body.tab then return end
+      local tab = tab_id(body.tab)
+      local url = body.url
+      -- Local cd events omit the URL; look up the emitting tab by its ID.
+      if not url then
+        for i = 1, #cx.tabs do
+          if tab_id(cx.tabs[i].id) == tab then
+            url = cx.tabs[i].current.cwd
+            break
+          end
+        end
+      end
+      if not url then return end
       -- Very important to turn this into a string because Url has ownership issues
       -- when passed to standard utility functions >.<'
       -- https://github.com/sxyazi/yazi/issues/2159
-      local cwd = tostring(cx.active.current.cwd)
+      local cwd = tostring(url)
       -- Upon startup this will be nil so initialize if necessary
       local tabhist = state.tabhist or {}
-      -- tabhist structure:{ <tab_index> = { <current_dir>, <previous_dir?> }, ... }
+      -- tabhist structure:{ <tab_id> = { <current_dir>, <previous_dir?> }, ... }
       if not tabhist[tab] then
         -- If fresh tab, initialize tab history table
         tabhist[tab] = { cwd }
-      else
+      elseif tabhist[tab][1] ~= cwd then
         -- Otherwise, shift history table to the right and add cwd to the front
         tabhist[tab] = { cwd, tabhist[tab][1] }
       end

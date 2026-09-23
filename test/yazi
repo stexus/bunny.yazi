@@ -1,6 +1,7 @@
 #!/bin/bash
 #/* vim: set filetype=bash : */
 
-env "YAZI_CONFIG_HOME=$(pwd)" "YAZI_LOG=debug" yazi "$@"
+test_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+env "YAZI_CONFIG_HOME=$test_dir" "YAZI_LOG=debug" yazi "$@"
 
 bat ~/.local/state/yazi/yazi.log || cat ~/.local/state/yazi/yazi.log

@@ -9,7 +9,7 @@ This is a bookmark plugin for [yazi](https://github.com/sxyazi/yazi) which augme
 - Create persistent hops in your `init.lua` config file
 - Create ephemeral hops while using yazi
 - Hop to any directory open in another tab
-- Hop back to previous directory (history is associated with tab number)
+- Hop back to previous directory (history follows the tab when tabs are reordered)
 - Hop by fuzzy searching available hops with [fzf](https://github.com/junegunn/fzf) or similar program
 - Single menu for all functionality, therefore only one keymap is required in your `keymap.toml` file
 - Hands off: no reads or writes to your filesystem, all state is kept in memory
@@ -24,7 +24,7 @@ This is a bookmark plugin for [yazi](https://github.com/sxyazi/yazi) which augme
 git clone https://github.com/stelcodes/bunny.yazi ~/.config/yazi/plugins/bunny.yazi
 ```
 
-### With `yapack`
+### With `ya pkg`
 
 ```sh
 ya pkg add stelcodes/bunny
@@ -94,6 +94,18 @@ desc = "Start bunny.yazi fuzzy search"
 on = "'"
 run = "plugin bunny fuzzy"
 ```
+
+## Development
+
+Run `lua test/regression.lua` from the repository root for the regression tests,
+`python3 test/package.py` to check installation with the real `ya` package manager,
+or `./test/yazi` to try the plugin with the test configuration. Set `YA=/path/to/ya`
+to test a specific version; the package test uses a local snapshot and temporary
+config/cache directories.
+
+The test plugin links only `main.lua`. Keep this as a file symlink: Yazi's package
+manager materializes tracked symlinks as regular files and cannot install a
+repository containing a symlink to a directory.
 
 ## Inspiration
 
