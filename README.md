@@ -103,9 +103,10 @@ or `./test/yazi` to try the plugin with the test configuration. Set `YA=/path/to
 to test a specific version; the package test uses a local snapshot and temporary
 config/cache directories.
 
-The test plugin links only `main.lua`. Keep this as a file symlink: Yazi's package
-manager materializes tracked symlinks as regular files and cannot install a
-repository containing a symlink to a directory.
+The test launcher creates a temporary configuration with a link to `main.lua`
+and removes it on exit. Keep symlinks out of the tracked repository: Yazi's
+package manager can fail when an existing package cache contains native symlinks,
+even when a fresh installation succeeds. The package test checks both cases.
 
 ## Inspiration
 

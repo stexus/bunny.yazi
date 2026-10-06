@@ -2,6 +2,11 @@
 #/* vim: set filetype=bash : */
 
 test_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-env "YAZI_CONFIG_HOME=$test_dir" "YAZI_LOG=debug" yazi "$@"
+config_dir="$(mktemp -d "${TMPDIR:-/tmp}/bunny-yazi.XXXXXX")" || exit 1
+trap 'rm -rf -- "$config_dir"' EXIT
+mkdir -p "$config_dir/plugins/bunny.yazi" || exit 1
+cp "$test_dir/init.lua" "$test_dir/keymap.toml" "$config_dir/" || exit 1
+ln -s "$test_dir/../main.lua" "$config_dir/plugins/bunny.yazi/main.lua" || exit 1
+env "YAZI_CONFIG_HOME=$config_dir" "YAZI_LOG=debug" yazi "$@"
 
 bat ~/.local/state/yazi/yazi.log || cat ~/.local/state/yazi/yazi.log

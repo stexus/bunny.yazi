@@ -43,6 +43,15 @@ with tempfile.TemporaryDirectory(prefix="bunny-package-") as work:
 
     package("add", "stexus/bunny")
     package("upgrade")
+    # Older package caches can contain native symlinks, unlike a fresh ya clone.
+    caches = list((root / "cache/yazi/packages").iterdir())
+    assert len(caches) == 1
+    shutil.rmtree(caches[0])
+    subprocess.run(
+        ["git", "clone", "-c", "core.symlinks=true", str(source), str(caches[0])],
+        check=True,
+    )
+    package("upgrade")
     # A locked install must also deploy successfully into an empty plugins directory.
     shutil.rmtree(config / "plugins")
     package("install")
