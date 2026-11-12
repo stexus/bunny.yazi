@@ -81,6 +81,21 @@ require("bunny"):setup({
 })
 ```
 
+### Repository-relative hops
+
+A path starting with `@repo/` is resolved when you hop, relative to the root of
+the Git repository containing the current directory. In a linked worktree (or a
+submodule) that is the worktree's own root, so the same hop always stays inside
+the checkout you are working in.
+
+```lua
+{ key = { "r", "r" }, path = "@repo/",     desc = "Repo root" },
+{ key = { "r", "s" }, path = "@repo/src",  desc = "Repo src"  },
+{ key = { "r", "d" }, path = "@repo/docs", desc = "Repo docs" },
+```
+
+Paths may also use environment variables, written as `$VAR` or `${VAR}`.
+
 `~/.config/yazi/keymap.toml`:
 ```toml
 [[mgr.prepend_keymap]]

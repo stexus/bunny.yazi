@@ -36,10 +36,10 @@ local function get_repo_root()
   local path = Url(get_cwd_str())
 
   while path do
-    -- Git worktrees and submodules use a .git file instead of a directory.
+    -- Linked worktrees and submodules use a .git file instead of a directory,
+    -- so @repo/ resolves against the checkout you are in, not the main one.
     local git = fs.cha(path:join('.git'), true)
-    local hg = fs.cha(path:join('.hg'), true)
-    if (git and (git.is_dir or git.is_file)) or (hg and hg.is_dir) then
+    if git and (git.is_dir or git.is_file) then
       return tostring(path)
     end
     path = path.parent
@@ -69,7 +69,7 @@ local function resolve_path(path)
   if string.sub(path, 1, #REPO_PREFIX) == REPO_PREFIX then
     local repo_root = get_repo_root()
     if not repo_root then
-      return nil, "Not in a git or sapling repository"
+      return nil, "Not in a git repository"
     end
     local relative_path = string.sub(path, #REPO_PREFIX + 1)
     if relative_path == "" then

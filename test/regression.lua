@@ -99,16 +99,33 @@ local tests = {
     equal(f.state.tabhist[99][1], '/background')
     equal(f.state.tabhist[100], nil)
   end,
-  ['repository hops find Git directories, worktree files, and Sapling'] = function()
-    for _, marker in ipairs({ '.git', '.hg' }) do
-      for _, kind in ipairs(marker == '.git' and { 'is_dir', 'is_file' } or { 'is_dir' }) do
-        local f = fixture({ hops = { { key = 'a', path = '@repo/src' } } }, '/repo/subdir', {
-          ['/repo/' .. marker] = { [kind] = true },
-        })
-        f.run('a')
-        equal(f.emitted[1][2], '/repo/src')
-      end
+  ['repository hops find Git directories and worktree files'] = function()
+    for _, kind in ipairs({ 'is_dir', 'is_file' }) do
+      local f = fixture({ hops = { { key = 'a', path = '@repo/src' } } }, '/repo/subdir', {
+        ['/repo/.git'] = { [kind] = true },
+      })
+      f.run('a')
+      equal(f.emitted[1][2], '/repo/src')
     end
+  end,
+  ['repository hops resolve against the current worktree'] = function()
+    local markers = {
+      ['/code/app/.git'] = { is_dir = true },
+      ['/code/app-feature/.git'] = { is_file = true },
+    }
+    for _, root in ipairs({ '/code/app', '/code/app-feature' }) do
+      local f = fixture({ hops = { { key = 'a', path = '@repo/src' } } }, root .. '/lib', markers)
+      f.run('a')
+      equal(f.emitted[1][2], root .. '/src')
+    end
+  end,
+  ['Mercurial directories are not repositories'] = function()
+    local f = fixture({ hops = { { key = 'a', path = '@repo/src' } } }, '/repo/subdir', {
+      ['/repo/.hg'] = { is_dir = true },
+    })
+    f.run('a')
+    equal(#f.emitted, 0)
+    equal(f.notices[1].content, 'Not in a git repository')
   end,
   ['repository search includes the filesystem root'] = function()
     local f = fixture({ hops = { { key = 'a', path = '@repo/src' } } }, '/nested', {
@@ -129,7 +146,7 @@ local tests = {
     local f = fixture({ hops = { { key = 'a', path = '@repo/src' } } })
     f.run('a')
     equal(#f.emitted, 0)
-    equal(f.notices[1].content, 'Not in a git or sapling repository')
+    equal(f.notices[1].content, 'Not in a git repository')
   end,
 }
 
