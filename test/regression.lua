@@ -100,9 +100,9 @@ local tests = {
     equal(f.state.tabhist[100], nil)
   end,
   ['repository hops find Git directories and worktree files'] = function()
-    for _, kind in ipairs({ 'is_dir', 'is_file' }) do
+    for _, is_dir in ipairs({ true, false }) do
       local f = fixture({ hops = { { key = 'a', path = '@repo/src' } } }, '/repo/subdir', {
-        ['/repo/.git'] = { [kind] = true },
+        ['/repo/.git'] = { is_dir = is_dir },
       })
       f.run('a')
       equal(f.emitted[1][2], '/repo/src')
@@ -111,9 +111,9 @@ local tests = {
   ['repository hops resolve against the current worktree'] = function()
     local markers = {
       ['/code/app/.git'] = { is_dir = true },
-      ['/code/app-feature/.git'] = { is_file = true },
+      ['/code/app/wt1/.git'] = { is_dir = false }, -- Yazi's Cha has no is_file.
     }
-    for _, root in ipairs({ '/code/app', '/code/app-feature' }) do
+    for _, root in ipairs({ '/code/app', '/code/app/wt1' }) do
       local f = fixture({ hops = { { key = 'a', path = '@repo/src' } } }, root .. '/lib', markers)
       f.run('a')
       equal(f.emitted[1][2], root .. '/src')
@@ -137,7 +137,7 @@ local tests = {
   ['nearest repository wins and empty suffix hops to its root'] = function()
     local f = fixture({ hops = { { key = 'a', path = '@repo/' } } }, '/repo/subdir', {
       ['/repo/.git'] = { is_dir = true },
-      ['/repo/subdir/.git'] = { is_file = true },
+      ['/repo/subdir/.git'] = { is_dir = false },
     })
     f.run('a')
     equal(f.emitted[1][2], '/repo/subdir')

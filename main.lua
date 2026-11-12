@@ -38,8 +38,8 @@ local function get_repo_root()
   while path do
     -- Linked worktrees and submodules use a .git file instead of a directory,
     -- so @repo/ resolves against the checkout you are in, not the main one.
-    local git = fs.cha(path:join('.git'), true)
-    if git and (git.is_dir or git.is_file) then
+    -- Yazi's Cha has no is_file field, so any existing .git entry counts.
+    if fs.cha(path:join('.git'), true) then
       return tostring(path)
     end
     path = path.parent
